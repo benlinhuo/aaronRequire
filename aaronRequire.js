@@ -1,27 +1,39 @@
-
 /****************************************************************
-*
-* 					支持AMD,CMD模块加载方式
-*
-*****************************************************************/
-var require, define;
-(function(global) {
-	var DOC = global.document,
-		W3C = window.dispatchEvent,
-		objproto    = Object.prototype,
+* 		 支持AMD,CMD模块加载方式
+* 		 @by Aaron
+*          	 github:https://github.com/JsAaron/aaronRequire
+*          	 blog:http://www.cnblogs.com/aaronjs/
+ *****************************************************************/
+;(function(r) {
+	if (typeof module === "object" && typeof require === "function") {
+		module.exports.require = r.require;
+		module.exports.define = r.define;
+	} else {
+		require = r.require;
+		define  = r.define;
+	}
+})(function() {
+	var objproto = Object.prototype,
 		objtoString = objproto.toString,
-		objhasOwn   = objproto.hasOwnProperty,
-		arrproto    = Array.prototype,
-		arrsplice   = arrproto.splice,
-		modules     = {},
-		pushStack   = {};
+		arrproto = Array.prototype,
+		nativeForEach = arrproto.forEach,
+		modules = {},
+		pushStack = {};
 
- 	/*****************************************************************
- 	*
- 	*		 			类型检测
- 	*
- 	* ****************************************************************/
-	function isFunction(it){
+	function each(obj, callback, context) {
+		if (obj == null) return;
+		//如果支持本地forEach方法,并且是函数
+		if (nativeForEach && obj.forEach === nativeForEach) {
+			obj.forEach(callback, context);
+		} else if (obj.length === +obj.length) {
+			//for循环迭代
+			for (var i = 0, l = obj.length; i < l; i++) {
+				if (callback.call(context, obj[i], i, obj) === breaker) return;
+			}
+		}
+	};
+
+	function isFunction(it) {
 		return objtoString.call(it) === '[object Function]';
 	}
 
@@ -29,31 +41,23 @@ var require, define;
 		return objtoString.call(it) === '[object Array]';
 	}
 
-    function noop() {
-    }
-
-    function log(a) {
-        window.console && console.log(W3C ? a : a + "")
-    }
-
-
 	//解析依赖关系
 	function parseDeps(module) {
 		var deps = module['deps'],
 			temp = [];
-		deps.forEach(function(id, index) {
+		each(deps, function(id, index) {
 			temp.push(build(modules[id]))
 		})
 		return temp;
 	}
 
 	function build(module) {
-		var depsList,
+		var depsList,existMod,
 			factory = module['factory'],
 			id = module['id'];
 
-		if (pushStack[id]) { //去重复执行
-			return pushStack[id]
+		if (existMod = pushStack[id]) { //去重复执行
+			return existMod;
 		}
 
 		//接口点，将数据或方法定义在其上则将其暴露给外部调用。
@@ -80,11 +84,9 @@ var require, define;
 	function makeRequire(ids, callback) {
 		var r = ids.length,
 			shim = [];
-
 		while (r--) {
 			shim.unshift(build(modules[ids[r]]));
 		}
-
 		if (callback) {
 			callback.apply(null, shim);
 		} else {
@@ -92,72 +94,53 @@ var require, define;
 		}
 	}
 
-	/****************************************************************
-	*
-	* 						引入模块
-	*
-	*****************************************************************/
-	require = function(id, callback) {
-
-		//数组形式
-		//require(['domReady', 'App'], function(domReady, app) {});
-		if (isArray(id)) {
-			if (id.length > 1) {
-				return makeRequire(id, callback);
+	return {
+		//引入模块
+		require: function(id, callback) {
+			//数组形式
+			//require(['domReady', 'App'], function(domReady, app) {});
+			if (isArray(id)) {
+				if (id.length > 1) {
+					return makeRequire(id, callback);
+				}
+				id = id[0];
 			}
-			id = id[0];
-		}
 
-		if (!modules[id]) {
-			throw "module " + id + " not found";
-		}
-
-		if (callback) {
-			var module = build(modules[id]);
-			callback(module)
-			return module;
-		} else {
-			if (modules[id].factory) {
-				return build(modules[id]);
+			if (!modules[id]) {
+				throw "module " + id + " not found";
 			}
-			return modules[id].exports;
+
+			if (callback) {
+				var module = build(modules[id]);
+				callback(module)
+				return module;
+			} else {
+				if (modules[id].factory) {
+					return build(modules[id]);
+				}
+				return modules[id].exports;
+			}
+		},
+		//定义模块
+		define: function(id, deps, factory) { //模块名,依赖列表,模块本身
+			if (modules[id]) {
+				throw "module " + id + " 模块已存在!";
+			}
+			//存在依赖导入
+			if (arguments.length === 3) {
+				modules[id] = {
+					id      : id,
+					deps    : deps,
+					factory : factory
+				};
+			} else {
+				factory = deps;
+				modules[id] = {
+					id      : id,
+					factory : factory
+				};
+			}
 		}
-	};
-
-	/****************************************************************
-	*
-	* 					定义模块
-	*
-	*****************************************************************/
-	define = function(id, deps, factory) { //模块名,依赖列表,模块本身
-		if (modules[id]) {
-			throw "module " + id + " 模块已存在!";
-		}
-
-		//存在依赖导入
-		if (arguments.length === 3) {
-			modules[id] = {
-				id      : id,
-				deps    : deps,
-				factory : factory
-			};
-		} else {
-			factory = deps;
-			modules[id] = {
-				id      : id,
-				factory : factory
-			};
-		}
-	};
-
-	define.remove = function(id) {
-		delete modules[id];
-	};
-
-
-	if (typeof module === "object" && typeof require === "function") {
-		module.exports.require = require;
-		module.exports.define = define;
 	}
 
-})(this);
+}());
