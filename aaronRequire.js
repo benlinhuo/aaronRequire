@@ -28,7 +28,7 @@
 		} else if (obj.length === +obj.length) {
 			//for循环迭代
 			for (var i = 0, l = obj.length; i < l; i++) {
-				if (callback.call(context, obj[i], i, obj) === breaker) return;
+				callback.call(context, obj[i], i, obj)
 			}
 		}
 	};
