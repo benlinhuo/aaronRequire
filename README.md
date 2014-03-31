@@ -64,3 +64,26 @@ AMD/CommonJS 加载模式
     require('c',function(c){
         console.log(c)
     })
+
+    
+
+    /*****************************************************
+     *
+     *              引入多个依赖加载
+     *
+     *******************************************************/
+
+	//引入依赖加载
+	require([
+			'Config',
+			'ScriptLoad',
+			'PromptNotice',
+			'ExecuteSql',
+			'LocalStorage',
+			'App'
+		], function(aa) {
+
+	})
+
+    
+    
